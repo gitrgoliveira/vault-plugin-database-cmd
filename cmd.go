@@ -33,7 +33,7 @@ func new() *cmd {
 	db := &cmd{
 		// ...
 	}
-	return db, nil
+	return db
 }
 
 func (db *cmd) secretValues() map[string]string {
