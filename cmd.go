@@ -2,21 +2,17 @@ package cmd
 
 import (
 	"context"
-	"sync"
 
 	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
-	"github.com/hashicorp/vault/sdk/helper/template"
-
-	"github.com/hashicorp/vault/sdk/database/helper/credsutil"
 )
 
 var _ dbplugin.Database = (*cmd)(nil)
 
 type cmd struct {
-	sync.RWMutex
+	// sync.RWMutex
 
-	usernameProducer template.StringTemplate
-	credsutil.CredentialsProducer
+	// usernameProducer template.StringTemplate
+	// credsutil.CredentialsProducer
 }
 
 func New() (interface{}, error) {
@@ -38,7 +34,7 @@ func new() *cmd {
 
 func (db *cmd) secretValues() map[string]string {
 	return map[string]string{
-		db.password: "[password]",
+		"db.password": "[password]",
 	}
 }
 
