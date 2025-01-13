@@ -39,7 +39,10 @@ func (db *cmd) secretValues() map[string]string {
 }
 
 func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (dbplugin.InitializeResponse, error) {
-	return dbplugin.InitializeResponse{}, nil
+	resp := dbplugin.InitializeResponse{
+		Config: req.Config,
+	}
+	return resp, nil
 }
 
 func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplugin.NewUserResponse, error) {
