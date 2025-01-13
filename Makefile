@@ -22,7 +22,7 @@ endif
 
 all: fmt build start
 
-build: fmt 
+build: fmt cmd/${PLUGIN_NAME}/main.go $(wildcard *.go)
 	GOOS=$(OS) CGO_ENABLED=0 go build -o vault/plugins/${PLUGIN_NAME} cmd/${PLUGIN_NAME}/main.go
 
 start:
@@ -48,7 +48,7 @@ build-container: build
 SHA256:=$$(docker images --no-trunc --format="{{ .ID }}" ${DOCKER_IMAGE} | cut -d: -f2 | head -n 1)
 
 
-register-plugin: build-container start
+register-plugin: start
 	vault plugin runtime register -type=container -rootless=true -oci_runtime=runsc runsc
 
 	vault plugin register \
