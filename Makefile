@@ -74,9 +74,12 @@ test: register-plugin
 
 	vault write -force database-cmd/rotate-root/my-database
 
+	# repeating parameters adds more lines to the script.
+	# This is useful for testing the plugin's ability to handle multiple statements
 	vault write database-cmd/roles/dynamic-role \
 		db_name=my-database \
 		creation_statements="echo 'Dynamic creation statements'" \
+		creation_statements="ping -c3 www.google.com" \
 		revocation_statements="echo 'Dynamic revocation statements'" \
 		rollback_statements="echo 'Dynamic rollback statements'" \
 		renew_statements="echo 'Dynamic renew statements'" \
@@ -104,6 +107,6 @@ stop:
 
 release: build-container
 	@echo "Release"
-	docker image save $(DOCKER_IMAGE) | gzip > $(DOCKER_IMAGE)_$(DOCKER_IMAGE_TAG)_$(shell date +%Y%m%d).tar.gz
+	docker image save $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) | gzip > $(DOCKER_IMAGE)_$(DOCKER_IMAGE_TAG)_$(shell date +%Y%m%d).tar.gz
 
 .PHONY: all build clean fmt build-container register-plugin test stop release
