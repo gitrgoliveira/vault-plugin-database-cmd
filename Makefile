@@ -95,10 +95,8 @@ test: register-plugin
 		username="static-username" \
 		rotation_window="1h" \
 		self_managed_password="true" \
-		rotation_schedule="0 * * * SAT"
-		rotation_statements="echo 'Rotate static'" \
-		default_ttl="30s" \
-		max_ttl="1m"
+		rotation_schedule="0 * * * SAT" \
+		rotation_statements="echo 'Rotate static'"
 
 	vault read database-cmd/creds/dynamic-role
 	vault read database-cmd/static-creds/static-role
