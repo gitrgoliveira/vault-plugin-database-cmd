@@ -100,8 +100,6 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 	db.Logger.Info("NewUser", "rollback_statements", req.RollbackStatements.Commands)
 
 	if req.CredentialType == dbplugin.CredentialTypePassword {
-		db.Logger.Info("NewUser", "curr_password", req.Password)
-		db.Logger.Info("NewUser", "username", req)
 
 		username, err := credsutil.GenerateUsername(
 			credsutil.DisplayName(req.UsernameConfig.DisplayName, maxKeyLength),
