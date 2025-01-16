@@ -9,7 +9,6 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-secure-stdlib/strutil"
 	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
 	"github.com/hashicorp/vault/sdk/database/helper/credsutil"
 	identity "github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
@@ -83,19 +82,6 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 		return dbplugin.InitializeResponse{}, err
 	}
 
-	// username password
-	RootUsername, err := strutil.GetString(req.Config, "root_username")
-	if err != nil {
-		return dbplugin.InitializeResponse{}, fmt.Errorf("failed to retrieve root_username: %w", err)
-	}
-	db.RootUsername = RootUsername
-	RootPassword, err := strutil.GetString(req.Config, "root_password")
-	if err != nil {
-		return dbplugin.InitializeResponse{}, fmt.Errorf("failed to retrieve root_password: %w", err)
-	}
-	db.RootPassword = RootPassword
-	// and TLS config/certs
-
 	resp := dbplugin.InitializeResponse{
 		Config: req.Config,
 	}
@@ -130,10 +116,9 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 		// Assemble rollback statements into a single script
 		script := strings.Join(req.Statements.Commands, "\n")
 		params := map[string]string{
-			"name":       username,
-			"username":   username,
-			"password":   req.Password,
-			"expiration": req.Expiration.String(),
+			"name":     username,
+			"username": username,
+			"password": req.Password,
 		}
 
 		renderedScript := replaceVars(params, script)
@@ -161,15 +146,16 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 		db.Logger.Info("UpdateUser", "password_statements", req.Password.Statements.Commands)
 
 		// These statements are not used. They are only for the purpose of this example.
-		db.Logger.Info("UpdateUser", "expiration_statements", req.Expiration.Statements.Commands)
+		if req.Expiration != nil && req.Expiration.Statements.Commands != nil {
+			db.Logger.Info("UpdateUser", "expiration_statements", req.Expiration.Statements.Commands)
+		}
 
 		// Assemble password change statements into a single script
 		script := strings.Join(req.Password.Statements.Commands, "\n")
 		params := map[string]string{
-			"name":       req.Username,
-			"username":   req.Username,
-			"password":   req.Password.NewPassword,
-			"expiration": req.Expiration.NewExpiration.String(),
+			"name":     req.Username,
+			"username": req.Username,
+			"password": req.Password.NewPassword,
 		}
 		renderedScript := replaceVars(params, script)
 
