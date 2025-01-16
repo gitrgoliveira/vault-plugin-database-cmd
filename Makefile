@@ -27,7 +27,7 @@ build: fmt cmd/$(PLUGIN_NAME)/main.go $(wildcard *.go)
 
 start:
 	@if lsof -Pi :8200 -sTCP:LISTEN -t >/dev/null ; then \
-        echo "Vault server is already running"; \
+        echo "Vault server is already running"; exit 0;\
     else \
 	     vault server -dev -dev-root-token-id=root -log-level=trace \
 			-dev-listen-address=0.0.0.0:8200 > ./vault/debug.log 2>&1 & \
@@ -68,6 +68,8 @@ test: register-plugin
 		password="mandatory" \
 		root_rotation_statements="echo 'Root rotation statements'" \
 
+	vault write -force database-cmd/reload/vault-plugin-database-cmd
+	
 	vault list database-cmd/config
 	
 	vault read database-cmd/config/my-database
@@ -99,6 +101,7 @@ test: register-plugin
 		max_ttl="1m"
 
 	vault read database-cmd/creds/dynamic-role
+	vault read database-cmd/static-creds/static-role
 	vault read database-cmd/static-creds/static-role
 
 
