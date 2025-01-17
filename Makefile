@@ -40,7 +40,7 @@ clean:
 fmt:
 	go fmt $$(go list ./...)
 
-build-container: #build
+build-container: build
 	tar --exclude='./vagrant' -czh . | docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -
 
 SHA256:=$$(docker images --no-trunc --format="{{ .ID }}" $(DOCKER_IMAGE) | cut -d: -f2 | head -n 1)
