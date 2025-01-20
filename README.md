@@ -90,9 +90,10 @@ For detailed registration and usage instructions, please check the `test` sectio
 4. Go to `/vagrant` and run `make release`.
 
 ### Testing
-1. Modify the `Makefile` `test` target with the Vault commands you need
-2. Run `make start` to launch Vault in development mode
-3. Run `make test` to register the plugin, enable it and run the defined test commands
+1. Ensure the container image exists with `make build-container`
+2. Modify the `Makefile` `test` target with the Vault commands you need
+3. Run `make start` to launch Vault in development mode
+4. Run `make test` to register the plugin, enable it and run the defined test commands
 
 ## License
 
