@@ -25,7 +25,6 @@ var _ dbplugin.Database = (*cmd)(nil)
 type cmd struct {
 	Logger hclog.Logger
 
-	Config map[string]string
 	credsutil.CredentialsProducer
 
 	RawConfig map[string]interface{}
