@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -11,13 +10,13 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
 	"github.com/hashicorp/vault/sdk/database/helper/credsutil"
-	identity "github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/mitchellh/mapstructure"
 )
 
 const (
 	defaultTimeout = 20000 * time.Millisecond
 	maxKeyLength   = 64
+	scriptCommand  = "/bin/bash"
 )
 
 var _ dbplugin.Database = (*cmd)(nil)
@@ -29,19 +28,41 @@ type cmd struct {
 
 	RawConfig map[string]interface{}
 
-	RootTLSConfig *tls.Config
-
 	RootUsername    string `json:"username"`
 	RootPassword    string `json:"password"`
 	RootCertificate string `json:"certificate"`
 
 	CustomField string `json:"custom_field"`
 
-	identity.PluginIdentityTokenParams
+	AllParams map[string]string
 }
 
+// ToMap converts the exported parameters in RawConfig to a map[string]string.
+func (db *cmd) ToMap() map[string]string {
+	result := make(map[string]string)
+	for _, param := range exported_params {
+		if value, ok := db.RawConfig[param]; ok {
+			if strValue, ok := value.(string); ok {
+				result[param] = strValue
+			}
+		}
+	}
+	return result
+}
+
+func (db *cmd) convertParams() {
+	db.AllParams = db.ToMap()
+}
+
+var (
+	// exported parameters
+	exported_params = []string{
+		"RootUsername", "RootPassword", "RootCertificate", "CustomField",
+	}
+)
+
 func New() (interface{}, error) {
-	db := new()
+	db := newCmd()
 
 	// This middleware isn't strictly required, but highly recommended to prevent accidentally exposing
 	// values such as passwords in error messages.
@@ -49,7 +70,7 @@ func New() (interface{}, error) {
 	return dbType, nil
 }
 
-func new() *cmd {
+func newCmd() *cmd {
 	db := &cmd{}
 	db.Logger = hclog.New(&hclog.LoggerOptions{})
 	return db
@@ -62,8 +83,6 @@ func (db *cmd) secretValues() map[string]string {
 }
 
 func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (dbplugin.InitializeResponse, error) {
-	db.Logger = hclog.New(&hclog.LoggerOptions{})
-
 	db.Logger.Info("Initialize", "config", req.Config)
 
 	db.RawConfig = req.Config
@@ -82,6 +101,8 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 	if err != nil {
 		return dbplugin.InitializeResponse{}, err
 	}
+
+	db.convertParams()
 
 	resp := dbplugin.InitializeResponse{
 		Config: req.Config,
@@ -121,15 +142,9 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 			"password": req.Password,
 		}
 
-		renderedScript := replaceVars(params, script)
-
-		// Execute the script
-		cmd := exec.Command("/bin/bash", "-c", renderedScript)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return dbplugin.NewUserResponse{}, fmt.Errorf("failed to execute rollback script: %s, error: %w", script, err)
+		if err := db.executeScript(script, params); err != nil {
+			return dbplugin.NewUserResponse{}, fmt.Errorf("failed to execute creation script: %w", err)
 		}
-		db.Logger.Info("Executed creation script", "script", script, "output", string(output))
 
 		return dbplugin.NewUserResponse{
 			Username: username,
@@ -159,15 +174,10 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 			"username": req.Username,
 			"password": req.Password.NewPassword,
 		}
-		renderedScript := replaceVars(params, script)
 
-		// Execute the script
-		cmd := exec.Command("/bin/bash", "-c", renderedScript)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return dbplugin.UpdateUserResponse{}, fmt.Errorf("failed to execute password change script: %s, error: %w", script, err)
+		if err := db.executeScript(script, params); err != nil {
+			return dbplugin.UpdateUserResponse{}, fmt.Errorf("failed to execute password change script: %w", err)
 		}
-		db.Logger.Info("Executed password change script", "script", script, "output", string(output))
 
 		return dbplugin.UpdateUserResponse{}, nil
 	}
@@ -177,7 +187,6 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 
 func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (dbplugin.DeleteUserResponse, error) {
 	db.Logger.Info("DeleteUser", "Config custom_field", db.CustomField)
-
 	db.Logger.Info("DeleteUser", "username", req.Username)
 	db.Logger.Info("DeleteUser", "statements_commands", req.Statements.Commands)
 
@@ -187,15 +196,10 @@ func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (
 		"name":     req.Username,
 		"username": req.Username,
 	}
-	renderedScript := replaceVars(params, script)
 
-	// Execute the script
-	cmd := exec.Command("/bin/bash", "-c", renderedScript)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return dbplugin.DeleteUserResponse{}, fmt.Errorf("failed to execute delete script: %s, error: %w", script, err)
+	if err := db.executeScript(script, params); err != nil {
+		return dbplugin.DeleteUserResponse{}, fmt.Errorf("failed to execute delete script: %w", err)
 	}
-	db.Logger.Info("Executed delete script", "script", script, "output", string(output))
 
 	return dbplugin.DeleteUserResponse{}, nil
 }
@@ -218,4 +222,23 @@ func replaceVars(m map[string]string, tpl string) string {
 		tpl = strings.ReplaceAll(tpl, fmt.Sprintf("{{%s}}", k), v)
 	}
 	return tpl
+}
+
+func (db *cmd) executeScript(script string, params map[string]string) error {
+
+	//to add all the root config params to the script
+	for k, v := range db.AllParams {
+		params[k] = v
+	}
+
+	renderedScript := replaceVars(params, script)
+
+	cmd := exec.Command(scriptCommand, "-c", renderedScript)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		db.Logger.Error("Failed to execute script", "script", script, "output", string(output), "error", err)
+		return fmt.Errorf("script execution failed: %s, error: %w", script, err)
+	}
+	db.Logger.Info("Executed script", "script", script, "output", string(output))
+	return nil
 }
