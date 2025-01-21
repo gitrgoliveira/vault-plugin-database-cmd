@@ -41,7 +41,7 @@ fmt:
 	go fmt $$(go list ./...)
 
 build-container: build
-	tar --exclude='./vagrant' -czh . | docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -
+	tar --exclude='./vagrant' -czh . | docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -f Dockerfile -
 
 SHA256:=$$(docker images --no-trunc --format="{{ .ID }}" $(DOCKER_IMAGE) | cut -d: -f2 | head -n 1)
 
@@ -66,7 +66,9 @@ test: register-plugin
 		allowed_roles="*" \
 		username="mandatory" \
 		password="mandatory" \
+		custom_field="optional" \
 		root_rotation_statements="echo 'Root rotation statements'" \
+		root_rotation_statements="echo 'Second line'"
 
 	vault write -force database-cmd/reload/vault-plugin-database-cmd
 	

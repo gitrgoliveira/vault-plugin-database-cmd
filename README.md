@@ -55,7 +55,9 @@ For detailed registration and usage instructions, please check the `test` sectio
 		allowed_roles="*" \
 		username="mandatory" \
 		password="mandatory" \
-		root_rotation_statements="echo 'Root rotation statements'" 
+		custom_field="anything" \
+		root_rotation_statements="echo 'Root rotation statements'" \
+		root_rotation_statements="echo 'Second line'"
     ```
 > **Note:** To add more lines to the bash script, repeat the statement parameter.
 
