@@ -57,7 +57,7 @@ For detailed registration and usage instructions, please check the `test` sectio
 		password="mandatory" \
 		custom_field="anything" \
 		root_rotation_statements="echo 'Root rotation statements'" \
-		root_rotation_statements="echo 'Second line'"
+		root_rotation_statements="echo 'Second line {{root_custom_field}}'"
     ```
 > **Note 1:** To add more lines to the bash script, repeat the statement parameter.
 > **Note 2:** To add further custom fields, you'll need to edit the code. If you'd like to use these in your scripts, then all you need to do is use something like `{{root_custom_field}}` in your script.

@@ -107,8 +107,6 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 
 	db.AllParams = db.ToMap()
 
-	db.Logger.Info("Initialize", "Root config params", db.AllParams)
-
 	resp := dbplugin.InitializeResponse{
 		Config: req.Config,
 	}
@@ -121,7 +119,6 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 }
 
 func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplugin.NewUserResponse, error) {
-	db.Logger.Info("NewUser", "Root config params", db.AllParams)
 	db.Logger.Info("NewUser", "statements", req.Statements.Commands)
 
 	// These statements are not used. They are only for the purpose of this example.
@@ -161,8 +158,6 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 }
 
 func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (dbplugin.UpdateUserResponse, error) {
-	db.Logger.Info("UpdateUser", "Root config params", db.AllParams)
-
 	if req.CredentialType == dbplugin.CredentialTypePassword {
 		db.Logger.Info("UpdateUser", "username", req.Username)
 		db.Logger.Info("UpdateUser", "password_statements", req.Password.Statements.Commands)
@@ -191,7 +186,6 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 }
 
 func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (dbplugin.DeleteUserResponse, error) {
-	db.Logger.Info("DeleteUser", "Root config params", db.AllParams)
 	db.Logger.Info("DeleteUser", "username", req.Username)
 	db.Logger.Info("DeleteUser", "statements_commands", req.Statements.Commands)
 

@@ -68,7 +68,7 @@ test: register-plugin
 		password="mandatory" \
 		custom_field="optional" \
 		root_rotation_statements="echo 'Root rotation statements'" \
-		root_rotation_statements="echo 'Second line'"
+		root_rotation_statements="echo 'Second line {{root_custom_field}}'"
 
 	vault write -force database-cmd/reload/vault-plugin-database-cmd
 	
