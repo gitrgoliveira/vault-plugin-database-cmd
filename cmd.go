@@ -37,27 +37,30 @@ type cmd struct {
 	AllParams map[string]string
 }
 
-// ToMap converts the exported parameters in RawConfig to a map[string]string.
+// ToMap converts the RawConfig field of the cmd struct into a map of strings.
+// It iterates over the exportedParams slice and checks if each parameter exists
+// in the RawConfig map. If the parameter exists and its value is a string, it adds
+// the parameter to the result map with a "root_" prefix.
+//
+// Returns:
+//
+//	A map[string]string containing the parameters from RawConfig with a "root_" prefix.
 func (db *cmd) ToMap() map[string]string {
 	result := make(map[string]string)
-	for _, param := range exported_params {
+	for _, param := range exportedParams {
 		if value, ok := db.RawConfig[param]; ok {
 			if strValue, ok := value.(string); ok {
-				result[param] = strValue
+				result["root_"+param] = strValue
 			}
 		}
 	}
 	return result
 }
 
-func (db *cmd) convertParams() {
-	db.AllParams = db.ToMap()
-}
-
 var (
-	// exported parameters
-	exported_params = []string{
-		"RootUsername", "RootPassword", "RootCertificate", "CustomField",
+	// root configuration parameters to be used in statements
+	exportedParams = []string{
+		"custom_field", "username", "password", "certificate",
 	}
 )
 
@@ -102,7 +105,9 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 		return dbplugin.InitializeResponse{}, err
 	}
 
-	db.convertParams()
+	db.AllParams = db.ToMap()
+
+	db.Logger.Info("Initialize", "Root config params", db.AllParams)
 
 	resp := dbplugin.InitializeResponse{
 		Config: req.Config,
@@ -116,7 +121,7 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 }
 
 func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplugin.NewUserResponse, error) {
-	db.Logger.Info("NewUser", "Config custom_field", db.CustomField)
+	db.Logger.Info("NewUser", "Root config params", db.AllParams)
 	db.Logger.Info("NewUser", "statements", req.Statements.Commands)
 
 	// These statements are not used. They are only for the purpose of this example.
@@ -156,7 +161,7 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 }
 
 func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (dbplugin.UpdateUserResponse, error) {
-	db.Logger.Info("UpdateUser", "Config custom_field", db.CustomField)
+	db.Logger.Info("UpdateUser", "Root config params", db.AllParams)
 
 	if req.CredentialType == dbplugin.CredentialTypePassword {
 		db.Logger.Info("UpdateUser", "username", req.Username)
@@ -186,7 +191,7 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 }
 
 func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (dbplugin.DeleteUserResponse, error) {
-	db.Logger.Info("DeleteUser", "Config custom_field", db.CustomField)
+	db.Logger.Info("DeleteUser", "Root config params", db.AllParams)
 	db.Logger.Info("DeleteUser", "username", req.Username)
 	db.Logger.Info("DeleteUser", "statements_commands", req.Statements.Commands)
 
