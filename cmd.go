@@ -124,65 +124,77 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 	// These statements are not used. They are only for the purpose of this example.
 	db.Logger.Info("NewUser", "rollback_statements", req.RollbackStatements.Commands)
 
-	if req.CredentialType == dbplugin.CredentialTypePassword {
-
-		username, err := credsutil.GenerateUsername(
-			credsutil.DisplayName(req.UsernameConfig.DisplayName, maxKeyLength),
-			credsutil.RoleName(req.UsernameConfig.RoleName, maxKeyLength))
-
-		if err != nil {
-			return dbplugin.NewUserResponse{}, fmt.Errorf("failed to generate username: %w", err)
-		}
-
-		db.Logger.Info("NewUser", "future_username", username)
-
-		// Assemble rollback statements into a single script
-		script := strings.Join(req.Statements.Commands, "\n")
-		params := map[string]string{
-			"name":     username,
-			"username": username,
-			"password": req.Password,
-		}
-
-		if err := db.executeScript(script, params); err != nil {
-			return dbplugin.NewUserResponse{}, fmt.Errorf("failed to execute creation script: %w", err)
-		}
-
-		return dbplugin.NewUserResponse{
-			Username: username,
-		}, nil
-
+	if req.CredentialType != dbplugin.CredentialTypePassword {
+		return dbplugin.NewUserResponse{}, fmt.Errorf("only 'password' credential type is supported. Got %s ", req.CredentialType)
 	}
 
-	return dbplugin.NewUserResponse{}, fmt.Errorf("only 'password' credential type is supported. Got %s ", req.CredentialType)
+	username, err := credsutil.GenerateUsername(
+		credsutil.DisplayName(req.UsernameConfig.DisplayName, maxKeyLength),
+		credsutil.RoleName(req.UsernameConfig.RoleName, maxKeyLength))
+
+	if err != nil {
+		return dbplugin.NewUserResponse{}, fmt.Errorf("failed to generate username: %w", err)
+	}
+
+	db.Logger.Info("NewUser", "future_username", username)
+
+	// Assemble rollback statements into a single script
+	script := strings.Join(req.Statements.Commands, "\n")
+	params := map[string]string{
+		"name":     username,
+		"username": username,
+		"password": req.Password,
+	}
+
+	if err := db.executeScript(script, params); err != nil {
+		return dbplugin.NewUserResponse{}, fmt.Errorf("failed to execute creation script: %w", err)
+	}
+
+	return dbplugin.NewUserResponse{
+		Username: username,
+	}, nil
+
 }
 
 func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (dbplugin.UpdateUserResponse, error) {
-	if req.CredentialType == dbplugin.CredentialTypePassword {
-		db.Logger.Info("UpdateUser", "username", req.Username)
-		db.Logger.Info("UpdateUser", "password_statements", req.Password.Statements.Commands)
-
-		// These statements are not used. They are only for the purpose of this example.
-		if req.Expiration != nil && req.Expiration.Statements.Commands != nil {
-			db.Logger.Info("UpdateUser", "expiration_statements", req.Expiration.Statements.Commands)
-		}
-
-		// Assemble password change statements into a single script
-		script := strings.Join(req.Password.Statements.Commands, "\n")
-		params := map[string]string{
-			"name":     req.Username,
-			"username": req.Username,
-			"password": req.Password.NewPassword,
-		}
-
-		if err := db.executeScript(script, params); err != nil {
-			return dbplugin.UpdateUserResponse{}, fmt.Errorf("failed to execute password change script: %w", err)
-		}
-
-		return dbplugin.UpdateUserResponse{}, nil
+	if req.CredentialType != dbplugin.CredentialTypePassword {
+		return dbplugin.UpdateUserResponse{}, fmt.Errorf("only 'password' credential type is supported. Got %s", req.CredentialType)
 	}
 
-	return dbplugin.UpdateUserResponse{}, fmt.Errorf("only 'password' credential type is supported. Got %s ", req.CredentialType)
+	if req.Username == "" {
+		return dbplugin.UpdateUserResponse{}, fmt.Errorf("username is required")
+	}
+
+	if req.Password == nil || req.Password.NewPassword == "" {
+		return dbplugin.UpdateUserResponse{}, fmt.Errorf("new password is required")
+	}
+
+	db.Logger.Info("UpdateUser", "username", req.Username)
+	db.Logger.Info("UpdateUser", "password_statements", req.Password.Statements.Commands)
+
+	// These statements are not used. They are only for the purpose of this example.
+	if req.Expiration != nil && req.Expiration.Statements.Commands != nil {
+		db.Logger.Info("UpdateUser", "expiration_statements", req.Expiration.Statements.Commands)
+	}
+
+	// Assemble password change statements into a single script
+	script := strings.Join(req.Password.Statements.Commands, "\n")
+	params := map[string]string{
+		"name":     req.Username,
+		"username": req.Username,
+		"password": req.Password.NewPassword,
+	}
+
+	if err := db.executeScript(script, params); err != nil {
+		return dbplugin.UpdateUserResponse{}, fmt.Errorf("failed to execute password change script: %w", err)
+	}
+
+	// checking if the password rotated is for the root config user
+	if db.AllParams["root_username"] == req.Username {
+		db.AllParams["root_password"] = req.Password.NewPassword
+	}
+
+	return dbplugin.UpdateUserResponse{}, nil
 }
 
 func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (dbplugin.DeleteUserResponse, error) {
