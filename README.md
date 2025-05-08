@@ -13,6 +13,9 @@ By moving those rotation jobs into Vault you get:
 
 > **Note:** For static usernames, if rotation is enabled, the plugin will return the previous password if it hasn't been rotated yet.
 
+> [!CAUTION]
+> **This plugin is dangerous if misconfigured!** Any 3rd-party plugin can be dangerous and should be run in rootless docker with gVisor. Due to the nature of what this plugin allows, its configuration and setup must be handled with care. It is your responsibility to ensure that the commands you run are safe and do not expose your system to security risks.
+
 ## What can I do with this plugin?
 - Generate dynamic credentials for anything by executing custom commands for credential management
 - Migrate your current jobs/scripts into HashiCorp Vault by embedding the scripts and any other  binaries into the Dockerfile!
