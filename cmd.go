@@ -225,7 +225,7 @@ func (db *cmd) Close() error {
 }
 
 func replaceVars(m map[string]string, tpl string) string {
-	if m == nil || len(m) <= 0 {
+	if len(m) == 0 {
 		return tpl
 	}
 

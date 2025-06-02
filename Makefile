@@ -40,6 +40,10 @@ clean:
 fmt:
 	go fmt $$(go list ./...)
 
+lint:
+	@echo "Running static code analysis with golangci-lint..."
+	@golangci-lint run ./...
+
 build-container: build
 	tar --exclude='./vagrant' -czh . | docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -f Dockerfile -
 
@@ -112,4 +116,4 @@ release: build-container
 	@echo "Release"
 	docker image save $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) | gzip > $(DOCKER_IMAGE)_$(DOCKER_IMAGE_TAG)_$(shell date +%Y%m%d).tar.gz
 
-.PHONY: all build clean fmt build-container register-plugin test stop release
+.PHONY: all build clean fmt build-container register-plugin test stop release lint
