@@ -20,7 +20,7 @@ endif
 
 .DEFAULT_GOAL := all
 
-all: fmt build start
+all: fmt lint build start 
 
 build: fmt cmd/$(PLUGIN_NAME)/main.go $(wildcard *.go)
 	GOOS=$(OS) CGO_ENABLED=0 go build -o vault/plugins/$(PLUGIN_NAME) cmd/$(PLUGIN_NAME)/main.go
@@ -43,6 +43,8 @@ fmt:
 lint:
 	@echo "Running static code analysis with golangci-lint..."
 	@golangci-lint run ./...
+	@echo "Running static analysis with staticcheck..."
+	@staticcheck ./...
 
 build-container: build
 	tar --exclude='./vagrant' -czh . | docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -f Dockerfile -
