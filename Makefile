@@ -67,7 +67,13 @@ register-plugin: start
 
 	vault plugin reload -type=database -plugin $(PLUGIN_NAME)
 
-test: register-plugin
+unit-test:
+	@echo "Running unit tests..."
+	go test -v -race -coverprofile=coverage.out ./...
+	@echo "Coverage report:"
+	go tool cover -func=coverage.out
+
+integration-test: register-plugin
 	-vault secrets enable -path=database-cmd database
 
 	vault write database-cmd/config/my-database \
@@ -122,4 +128,4 @@ release: build-container
 	@echo "Release"
 	docker image save $(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) | gzip > $(DOCKER_IMAGE)_$(DOCKER_IMAGE_TAG)_$(shell date +%Y%m%d).tar.gz
 
-.PHONY: all build clean fmt build-container register-plugin test stop release lint
+.PHONY: all build clean fmt build-container register-plugin unit-test integration-test stop release lint

@@ -65,6 +65,22 @@ For detailed registration and usage instructions, please check the `test` sectio
 > **Note 1:** To add more lines to the bash script, repeat the statement parameter.
 > **Note 2:** To add further custom fields, you'll need to edit the code. If you'd like to use these in your scripts, then all you need to do is use something like `{{root_custom_field}}` in your script.
 
+### Optional Configuration Parameters
+
+#### Timeout Configuration
+The plugin enforces a default timeout of **20 seconds** for all command executions. You can customize this during configuration:
+
+```sh
+vault write database-cmd/config/my-database \
+    plugin_name="$(PLUGIN_NAME)" \
+    timeout="30s" \
+    ...
+```
+
+Supports standard Go duration formats: `"5s"`, `"1m"`, `"90s"`, etc. Minimum timeout is 1 second.
+
+> **Note:** Commands exceeding the timeout will be terminated with a clear timeout error message.
+
 
 
 3. Create roles to manage credentials, for example:

@@ -35,6 +35,8 @@ type cmd struct {
 
 	CustomField string `json:"custom_field"`
 
+	Timeout time.Duration `json:"timeout"`
+
 	AllParams map[string]string
 }
 
@@ -94,6 +96,7 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 		Result:           db,
 		WeaklyTypedInput: true,
 		TagName:          "json",
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
 	}
 
 	decoder, err := mapstructure.NewDecoder(decoderConfig)
@@ -104,6 +107,13 @@ func (db *cmd) Initialize(ctx context.Context, req dbplugin.InitializeRequest) (
 	err = decoder.Decode(req.Config)
 	if err != nil {
 		return dbplugin.InitializeResponse{}, err
+	}
+
+	if db.Timeout == 0 {
+		db.Timeout = defaultTimeout
+	}
+	if db.Timeout < time.Second {
+		return dbplugin.InitializeResponse{}, fmt.Errorf("timeout must be at least 1 second")
 	}
 
 	db.AllParams = db.ToMap()
@@ -147,7 +157,7 @@ func (db *cmd) NewUser(ctx context.Context, req dbplugin.NewUserRequest) (dbplug
 		"password": req.Password,
 	}
 
-	if err := db.executeScript(script, params); err != nil {
+	if err := db.executeScript(ctx, script, params); err != nil {
 		return dbplugin.NewUserResponse{}, fmt.Errorf("failed to execute creation script: %w", err)
 	}
 
@@ -186,7 +196,7 @@ func (db *cmd) UpdateUser(ctx context.Context, req dbplugin.UpdateUserRequest) (
 		"password": req.Password.NewPassword,
 	}
 
-	if err := db.executeScript(script, params); err != nil {
+	if err := db.executeScript(ctx, script, params); err != nil {
 		return dbplugin.UpdateUserResponse{}, fmt.Errorf("failed to execute password change script: %w", err)
 	}
 
@@ -209,7 +219,7 @@ func (db *cmd) DeleteUser(ctx context.Context, req dbplugin.DeleteUserRequest) (
 		"username": req.Username,
 	}
 
-	if err := db.executeScript(script, params); err != nil {
+	if err := db.executeScript(ctx, script, params); err != nil {
 		return dbplugin.DeleteUserResponse{}, fmt.Errorf("failed to execute delete script: %w", err)
 	}
 
@@ -236,7 +246,7 @@ func replaceVars(m map[string]string, tpl string) string {
 	return tpl
 }
 
-func (db *cmd) executeScript(script string, params map[string]string) error {
+func (db *cmd) executeScript(ctx context.Context, script string, params map[string]string) error {
 
 	//to add all the root config params to the script
 	for k, v := range db.AllParams {
@@ -245,11 +255,18 @@ func (db *cmd) executeScript(script string, params map[string]string) error {
 
 	renderedScript := replaceVars(params, script)
 
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(ctx, db.Timeout)
+	defer cancel()
+
 	shell, flag := getShell()
 	// #nosec G204 -- The command is constructed from trusted configuration.
-	cmd := exec.Command(shell, flag, renderedScript)
+	cmd := exec.CommandContext(ctx, shell, flag, renderedScript)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("script execution timed out after %s", db.Timeout)
+		}
 		db.Logger.Error("Failed to execute script", "script", script, "output", string(output), "error", err)
 		return fmt.Errorf("script execution failed: %s, error: %w", script, err)
 	}
