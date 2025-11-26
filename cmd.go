@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"runtime"
+
 	hclog "github.com/hashicorp/go-hclog"
 	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
 	"github.com/hashicorp/vault/sdk/database/helper/credsutil"
@@ -16,7 +18,6 @@ import (
 const (
 	defaultTimeout = 20000 * time.Millisecond
 	maxKeyLength   = 64
-	scriptCommand  = "/bin/bash"
 )
 
 var _ dbplugin.Database = (*cmd)(nil)
@@ -244,7 +245,9 @@ func (db *cmd) executeScript(script string, params map[string]string) error {
 
 	renderedScript := replaceVars(params, script)
 
-	cmd := exec.Command(scriptCommand, "-c", renderedScript)
+	shell, flag := getShell()
+	// #nosec G204 -- The command is constructed from trusted configuration.
+	cmd := exec.Command(shell, flag, renderedScript)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		db.Logger.Error("Failed to execute script", "script", script, "output", string(output), "error", err)
@@ -252,4 +255,11 @@ func (db *cmd) executeScript(script string, params map[string]string) error {
 	}
 	db.Logger.Info("Executed script", "script", script, "output", string(output))
 	return nil
+}
+
+func getShell() (string, string) {
+	if runtime.GOOS == "windows" {
+		return "cmd.exe", "/C"
+	}
+	return "/bin/bash", "-c"
 }

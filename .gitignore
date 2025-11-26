@@ -1,3 +1,4 @@
 vault/
 .vagrant/
 *.tar.gz
+/vault-plugin-database-cmd
