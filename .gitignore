@@ -3,3 +3,4 @@ vault/
 *.tar.gz
 /vault-plugin-database-cmd
 coverage.out
+.DS_Store
